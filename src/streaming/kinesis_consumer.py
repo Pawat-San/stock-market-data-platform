@@ -14,7 +14,7 @@ BATCH_SIZE = 100
 FLUSH_INTERVAL_SECONDS = 30  # seconds
 
 
-session = boto3.Session(profile_name=AWS_PROFILE)
+session = boto3.Session()
 
 kinesis_client = session.client(
     "kinesis",
@@ -43,7 +43,7 @@ def get_shard_iterator(shard_id):
     response = kinesis_client.get_shard_iterator(
         StreamName=KINESIS_STREAM_NAME,
         ShardId=shard_id,
-        ShardIteratorType="TRIM_HORIZON"
+        ShardIteratorType="LATEST"
     )
 
     return response["ShardIterator"]

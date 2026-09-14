@@ -9,7 +9,7 @@ KINESIS_STREAM_NAME = "stock-trades-stream"
 
 
 def get_finnhub_api_key():
-    session = boto3.Session(profile_name=AWS_PROFILE)
+    session = boto3.Session()
 
     client = session.client(
         "secretsmanager",
@@ -26,7 +26,7 @@ def get_finnhub_api_key():
 
 
 def get_kinesis_client():
-    session = boto3.Session(profile_name=AWS_PROFILE)
+    session = boto3.Session()
 
     return session.client(
         "kinesis",
