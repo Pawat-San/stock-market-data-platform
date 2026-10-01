@@ -19,6 +19,19 @@ Bronze → Silver → Gold Medallion Architecture in Databricks.
 For a detailed architecture breakdown, see
 [Architecture Documentation](docs/architecture.md).
 
+## Screenshots / Demo
+
+### Pipeline Orchestration
+
+![Finnhub Databricks Job](images/finnhun_RUN_JOB.png)
+
+![Finnhub Databricks Graph](images/FUNNHUB_Job_Graph.png)
+
+### Analytics Dashboard
+
+![Stock Market Analytics Dashboard](images\Stock_Market_Trading_Activity_Dashboard_FINNHUB.png)
+
+
 ## Tech Stack
 
 - AWS Lambda
@@ -152,6 +165,5 @@ Potential future enhancements include:
 
 - Alerting for failed DQ checks
 - Market-calendar-aware freshness monitoring
-- CI/CD deployment
 - Infrastructure as Code
 - Additional market data sources
