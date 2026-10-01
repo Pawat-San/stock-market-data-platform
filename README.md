@@ -29,7 +29,7 @@ For a detailed architecture breakdown, see
 
 ### Analytics Dashboard
 
-![Stock Market Analytics Dashboard](images\Stock_Market_Trading_Activity_Dashboard_FINNHUB.png)
+![Stock Market Analytics Dashboard](images/Stock_Market_Trading_Activity_Dashboard_FINNHUB.png)
 
 
 ## Tech Stack
