@@ -52,24 +52,13 @@ flowchart TB
     %% =========================
     BRONZE[Bronze Layer<br/>Auto Loader / Incremental Ingestion]
     SILVER[Silver Layer<br/>Clean / Standardize / Deduplicate]
-    DQ[Data Quality Validation]
     GOLD[Gold Layer<br/>Analytics-Ready Data]
 
     S3_LANDING --> BRONZE
     S3_RAW --> BRONZE
 
     BRONZE --> SILVER
-    SILVER --> DQ
-    DQ --> GOLD
-
-    %% =========================
-    %% Observability
-    %% =========================
-    AUDIT[Pipeline Audit Table<br/>workspace.gold.pipeline_audit]
-    OBS[Observability Dashboard]
-
-    DQ --> AUDIT
-    AUDIT --> OBS
+    SILVER --> GOLD
 
     %% =========================
     %% Consumption

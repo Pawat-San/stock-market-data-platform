@@ -1,7 +1,7 @@
 # Stock Market Data Platform
 
 End-to-end data engineering project for ingesting, processing,
-monitoring, and analyzing stock market data using AWS and Databricks.
+and analyzing stock market data using AWS and Databricks.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Data is ingested into Amazon S3 and processed through a
 Bronze → Silver → Gold Medallion Architecture in Databricks.
 
 
-![Stock Market Data Platform Architecture](images/architecture-diagram.png)
+![Stock Market Data Platform Architecture](images/architecture-diagram-2.png)
 
 For a detailed architecture breakdown, see
 [Architecture Documentation](docs/architecture.md).
@@ -58,7 +58,6 @@ EventBridge Scheduler
 → Amazon S3 Landing
 → Databricks Bronze
 → Silver
-→ Data Quality
 → Gold
 
 ### Streaming Pipeline
@@ -77,7 +76,6 @@ Finnhub WebSocket
 → Amazon S3 Raw
 → Databricks Bronze
 → Silver
-→ Data Quality
 → Gold
 
 ## Medallion Architecture
@@ -107,35 +105,27 @@ Techniques include:
 - Pipeline watermarks
 - Affected-partition recomputation
 
-## Data Quality
+Finnhub assigns a UUID to each received trade before writing to Kinesis.
+Silver uses this `event_id` to distinguish trades that share the same symbol,
+price, timestamp, and volume. Historical records without an ID retain their
+previous business-key behavior. Finnhub daily and hourly summaries use UTC.
+On the first Gold run after this change, the job rebuilds both summaries from
+Silver and removes groups created with the previous timezone setting.
+Deploy the updated producer first, then run the Bronze, Silver, and Gold jobs
+in that order. Auto Loader may restart Bronze once when it discovers the new
+`event_id` field. A producer-generated ID identifies a received WebSocket
+event; it does not detect a duplicate event delivered again by Finnhub.
+Bronze retains the original numeric field values alongside parsed values.
+Silver tracks the last successful Bronze Delta version and reads later inserts
+through Change Data Feed. Gold uses a Delta lock row while updating daily and
+hourly summaries; configure the Databricks Job with a single concurrent run as
+well. The lock expires after 24 hours if a run cannot release it.
+The one-time Gold rebuild uses `whenNotMatchedBySourceDelete`, which requires
+Databricks Runtime 12.2 LTS or newer.
 
-Data quality validation runs between Silver and Gold.
-
-Checks include:
-
-- Null or empty symbols
-- Invalid prices
-- Invalid volume
-- Duplicate records
-- Invalid trading dates
-- Invalid high/low price relationships
-
-If a DQ check fails, the Gold task is prevented from running.
-
-## Observability
-
-Pipeline execution and data quality metrics are recorded in:
-
-workspace.gold.pipeline_audit
-
-The observability dashboard tracks:
-
-- Latest pipeline status
-- Latest row count
-- Data quality error metrics
-- Data freshness status
-- Freshness lag in days
-- Audit run history
+Run the local streaming tests with `python -m unittest discover -s tests -v`.
+The Databricks scenarios in [Finnhub validation cases](tests/databricks_finnhub_validation.md)
+cover Delta behavior that needs a Databricks workspace.
 
 ## Analytics Dashboard
 
@@ -163,7 +153,5 @@ docs/
 
 Potential future enhancements include:
 
-- Alerting for failed DQ checks
-- Market-calendar-aware freshness monitoring
 - Infrastructure as Code
 - Additional market data sources

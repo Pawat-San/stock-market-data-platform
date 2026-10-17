@@ -307,14 +307,17 @@ Schema location:
 
 Auto Loader uses `availableNow=True` to process new files that have not been ingested previously.
 
-Bronze casts the main fields to:
+Bronze uses `try_cast` for numeric fields and keeps their original field values
+in `_raw_price`, `_raw_timestamp`, and `_raw_volume` for investigation.
+Auto Loader schema mismatches are retained in `_rescued_data` when present.
+The main typed fields are:
 
 ```text
 price       DOUBLE
 source      STRING
 symbol      STRING
-timestamp   INT
-volume      INT
+timestamp   BIGINT
+volume      BIGINT
 year        INT
 month       INT
 day         INT
@@ -338,13 +341,18 @@ Table:
 workspace.silver.finnhub_trades
 ```
 
-Business key:
+Business key for new producer events:
 
 ```text
-symbol + price + timestamp + volume + source
+event_id
 ```
 
-Silver reads Bronze rows newer than the latest Silver ingestion timestamp and writes new records using Delta `MERGE`.
+Historical events without an ID retain a deterministic hash of the previous
+`symbol + price + timestamp + volume + source` key. Silver first reads a pinned
+Bronze snapshot, then reads later inserts from Bronze Change Data Feed. It
+stores the last successfully processed Bronze version in the Silver table
+property `finnhub.silver.last_bronze_version` after the Delta `MERGE` succeeds.
+Trade dates use UTC.
 
 The current merge behavior inserts only records that do not already exist according to the business key.
 
@@ -373,6 +381,8 @@ symbol + trade_date + trade_hour
 Only affected groups are recomputed from the full Silver dataset and then merged back into Gold.
 
 The watermark is updated only after both daily and hourly merges complete successfully.
+Gold uses a single-run lock while it updates both summaries and the watermark.
+Daily and hourly grouping uses UTC.
 
 ---
 

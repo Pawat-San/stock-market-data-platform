@@ -1,4 +1,5 @@
 import json
+import uuid
 import boto3
 import websocket
 
@@ -41,6 +42,8 @@ def send_trade_to_kinesis(trade):
     symbol = trade["s"]
 
     record = {
+        # Stable across boto3 retries of this put_record call.
+        "event_id": str(uuid.uuid4()),
         "symbol": symbol,
         "price": trade["p"],
         "timestamp": trade["t"],

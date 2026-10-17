@@ -18,17 +18,25 @@ Stores raw streaming trade records ingested from Amazon S3.
 
 | Column | Type | Description |
 |---|---|---|
+| event_id | STRING | Producer-generated UUID for each received trade; null for historical events |
 | symbol | STRING | Stock ticker symbol |
 | price | DOUBLE | Trade price |
-| timestamp | INT | Trade timestamp in milliseconds |
-| volume | INT | Trade volume |
+| timestamp | BIGINT | Trade timestamp in milliseconds |
+| volume | BIGINT | Trade volume |
 | source | STRING | Data source |
+| _raw_price | STRING | Price field before numeric conversion |
+| _raw_timestamp | STRING | Timestamp field before numeric conversion |
+| _raw_volume | STRING | Volume field before numeric conversion |
+| _rescued_data | STRING | Auto Loader JSON for fields that do not match the inferred schema |
 | year | INT | Partition year |
 | month | INT | Partition month |
 | day | INT | Partition day |
 | hour | INT | Partition hour |
 | _ingested_at | TIMESTAMP | Databricks ingestion timestamp |
 | _source_file | STRING | Source file path |
+
+Malformed numeric values remain visible in the `_raw_*` columns even when
+`try_cast` returns null. The original JSONL file remains in S3.
 
 
 ### workspace.silver.finnhub_trades
@@ -39,19 +47,26 @@ Stores cleaned, standardized, and deduplicated Finnhub trade records.
 
 | Column | Type | Description |
 |---|---|---|
+| event_id | STRING | `producer:<UUID>` for new events or `legacy:<hash>` for historical rows |
 | symbol | STRING | Normalized stock ticker symbol |
 | price | DOUBLE | Trade price |
-| timestamp | INT | Original Unix timestamp in milliseconds |
+| timestamp | BIGINT | Original Unix timestamp in milliseconds |
 | trade_timestamp | TIMESTAMP | Converted trade timestamp |
-| trade_date | DATE | Trade date derived from trade timestamp |
-| volume | INT | Trade volume |
+| trade_date | DATE | UTC date derived from trade timestamp |
+| volume | BIGINT | Trade volume |
 | source | STRING | Source identifier |
 | _ingested_at | TIMESTAMP | Bronze ingestion timestamp |
 | _source_file | STRING | Source file path |
 
 **Business Key**
 
-`symbol + price + timestamp + volume + source`
+`event_id`. Historical records without a producer ID retain the previous
+`symbol + price + timestamp + volume + source` identity as a deterministic
+`legacy:<hash>`; identical historical events cannot be separated retroactively.
+
+Silver stores the last successfully processed Bronze Delta version as table
+property `finnhub.silver.last_bronze_version`. Later runs consume Bronze Change
+Data Feed inserts after that version.
 
 ### workspace.gold.daily_trade_summary
 
@@ -62,11 +77,11 @@ Stores daily aggregated Finnhub trading metrics by symbol.
 | Column | Type | Description |
 |---|---|---|
 | symbol | STRING | Stock ticker symbol |
-| trade_date | DATE | Trading date |
+| trade_date | DATE | UTC trading date |
 | low_price | DOUBLE | Lowest trade price of the day |
 | high_price | DOUBLE | Highest trade price of the day |
-| total_volume | INT | Total traded volume |
-| trade_count | INT | Number of trade records |
+| total_volume | BIGINT | Total traded volume |
+| trade_count | BIGINT | Number of trade records |
 | avg_trade_price | DOUBLE | Average trade price |
 | vwap | DOUBLE | Volume Weighted Average Price |
 | first_trade_timestamp | TIMESTAMP | First trade timestamp of the day |
@@ -81,12 +96,12 @@ Stores hourly aggregated Finnhub trading metrics by symbol.
 | Column | Type | Description |
 |---|---|---|
 | symbol | STRING | Stock ticker symbol |
-| trade_date | DATE | Trading date |
-| trade_hour | INT | Hour of day |
+| trade_date | DATE | UTC trading date |
+| trade_hour | INT | UTC hour of day (0–23) |
 | low_price | DOUBLE | Lowest trade price during the hour |
 | high_price | DOUBLE | Highest trade price during the hour |
-| total_volume | INT | Total traded volume |
-| trade_count | INT | Number of trade records |
+| total_volume | BIGINT | Total traded volume |
+| trade_count | BIGINT | Number of trade records |
 | avg_trade_price | DOUBLE | Average trade price |
 | vwap | DOUBLE | Volume Weighted Average Price |
 
@@ -172,6 +187,20 @@ Current pipeline identifiers include:
 - `finnhub_gold`
 - `alphavantage_silver`
 - `alphavantage_gold`
+
+### workspace.gold.finnhub_gold_run_lock
+
+**Purpose**
+
+Contains one row used to prevent overlapping Finnhub Gold notebook runs. The
+owner is released when the notebook finishes; a lease expires after 24 hours
+if the run terminates without cleanup.
+
+| Column | Type | Description |
+|---|---|---|
+| pipeline_name | STRING | `finnhub_gold` |
+| owner_id | STRING | UUID of the current notebook run, or null |
+| expires_at | TIMESTAMP | Lease expiration in UTC, or null |
 
 ### workspace.gold.pipeline_audit
 
